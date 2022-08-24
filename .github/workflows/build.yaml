@@ -1,0 +1,31 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_package:
+    strategy:
+      matrix:
+        postgresql_version:
+          - { major: 14, minor: 5, latest: true }
+          - { major: 13, minor: 8, latest: false }
+          - { major: 12, minor: 12, latest: false }
+          - { major: 11, minor: 17, latest: false }
+          - { major: 10, minor: 22, latest: false }
+
+    uses: bitcompat/base/.github/workflows/build.yaml@main
+    with:
+      name: PostgreSQL ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
+      build-args: |
+        RUN_TESTS=0
+        SERVER_VERSION=${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
+      image_tag: |
+        ${{ matrix.postgresql_version.latest && 'latest' || '' }}
+        ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r1
+        ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye
+        ${{ matrix.postgresql_version.major }}-bullseye
+        ${{ matrix.postgresql_version.major }}
+    secrets: inherit
