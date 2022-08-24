@@ -50,11 +50,16 @@ ARG PROJ_VERSION=8.2.1
 ARG GEOS_VERSION=3.11.0
 ARG GDAL_VERSION=3.5.1
 
-COPY --from=ghcr.io/bitcompat/json-c:0.16-20220414-bullseye-r1 /opt/bitnami/common /opt/bitnami/postgresql
+COPY --from=ghcr.io/bitcompat/json-c:0.16-20220414-bullseye-r1 /opt/bitnami/common/ /opt/bitnami/postgresql/
+RUN sed -i 's/\/common/\/postgresql/' /opt/bitnami/postgresql/lib/pkgconfig/json-c.pc
+
+ADD --link https://github.com/lurcher/unixODBC/releases/download/2.3.11/unixODBC-2.3.11.tar.gz /opt/src/unixODBC-2.3.11.tar.gz
+ADD --link https://download.osgeo.org/proj/proj-${PROJ_VERSION}.tar.gz /opt/src/proj-${PROJ_VERSION}.tar.gz
+ADD --link https://download.osgeo.org/geos/geos-${GEOS_VERSION}.tar.bz2 /opt/src/geos-${GEOS_VERSION}.tar.bz2
+ADD --link https://github.com/OSGeo/gdal/releases/download/v${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.gz /opt/src/gdal-${GDAL_VERSION}.tar.gz
 
 RUN mkdir -p /opt/src
 RUN echo "/opt/bitnami/common/lib" >> /etc/ld.so.conf
-ADD --link https://github.com/lurcher/unixODBC/releases/download/2.3.11/unixODBC-2.3.11.tar.gz /opt/src/unixODBC-2.3.11.tar.gz
 RUN <<EOT bash
     set -eu
 
@@ -66,7 +71,6 @@ RUN <<EOT bash
     make install
 EOT
 
-ADD --link https://download.osgeo.org/proj/proj-${PROJ_VERSION}.tar.gz /opt/src/proj-${PROJ_VERSION}.tar.gz
 RUN <<EOT bash
     set -eu
     mkdir -p /opt/bitnami/postgresql
@@ -91,7 +95,6 @@ RUN <<EOT bash
     cmake --build . --target install
 EOT
 
-ADD --link https://download.osgeo.org/geos/geos-${GEOS_VERSION}.tar.bz2 /opt/src/geos-${GEOS_VERSION}.tar.bz2
 RUN <<EOT bash
     cd /opt/src
     tar xf geos-${GEOS_VERSION}.tar.bz2
@@ -114,7 +117,6 @@ RUN <<EOT bash
     make install
 EOT
 
-ADD --link https://github.com/OSGeo/gdal/releases/download/v${GDAL_VERSION}/gdal-${GDAL_VERSION}.tar.gz /opt/src/gdal-${GDAL_VERSION}.tar.gz
 RUN <<EOT bash
     set -eu
 
@@ -153,7 +155,7 @@ COPY --link prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install required system packages and dependencies
-COPY --link --from=ghcr.io/bitcompat/gosu:1.14.0-bullseye-r1 /opt/bitnami/ /opt/bitnami/
+COPY --link --from=ghcr.io/bitcompat/gosu:1.14.0-bullseye-r1 /opt/bitnami/* /opt/bitnami/
 COPY --link --from=protobuf-build /opt/bitnami/ /opt/bitnami/
 COPY --link --from=proj-build /opt/bitnami/ /opt/bitnami/
 
@@ -161,7 +163,7 @@ RUN install_packages ca-certificates curl gzip libbz2-1.0 tar procps zlib1g loca
 RUN install_packages systemtap-sdt-dev pkg-config libicu-dev flex bison \
     libreadline-dev zlib1g-dev libldap2-dev libpam-dev libssl-dev libxml2-dev libxml2-utils libxslt1-dev libzstd-dev \
     uuid-dev gettext libperl-dev libipc-run-perl liblz4-dev xsltproc zstd git \
-    maven openjdk-17-jdk-headless
+    maven openjdk-17-jdk-headless libpcre3-dev
 
 ARG SERVER_VERSION
 ARG PGAUDIT_15_VERSION=1.7beta1
