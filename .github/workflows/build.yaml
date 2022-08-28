@@ -6,7 +6,99 @@ on:
       - main
 
 jobs:
+  build_protobuf:
+    uses: bitcompat/base/.github/workflows/build-library.yaml@main
+    with:
+      name: protobuf
+      path: lib/protobuf
+
+  build_unixodbc:
+    uses: bitcompat/base/.github/workflows/build-library.yaml@main
+    with:
+      name: unixodbc
+      path: lib/unixodbc
+
+  build_libproj:
+    uses: bitcompat/base/.github/workflows/build-library.yaml@main
+    with:
+      name: libproj
+      path: lib/libproj
+
+  build_gdal:
+    needs:
+      - build_protobuf
+      - build_unixodbc
+      - build_libproj
+    strategy:
+      matrix:
+        platform:
+          - amd64
+          - arm64
+
+    name: Build GDAL library - ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: protobuf-${{ matrix.platform }}
+          path: lib/gdal/build/protobuf
+      - uses: actions/download-artifact@v3
+        with:
+          name: unixodbc-${{ matrix.platform }}
+          path: lib/gdal/build/unixodbc
+      - uses: actions/download-artifact@v3
+        with:
+          name: libproj-${{ matrix.platform }}
+          path: lib/gdal/build/libproj
+
+      - run: |
+          mkdir -p lib/gdal/lib
+          mv lib/gdal/build/unixodbc/build.tar lib/gdal/lib/unix-odbc.tar
+          mv lib/gdal/build/libproj/build.tar lib/gdal/lib/libproj.tar
+          mv lib/gdal/build/protobuf/build.tar lib/gdal/lib/protobuf.tar
+          cd lib/gdal/lib/
+          tar xf unix-odbc.tar
+          tar xf libproj.tar
+          tar xf protobuf.tar
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build container
+        uses: docker/build-push-action@v2
+        with:
+          platforms: linux/${{ matrix.platform }}
+          context: lib/gdal
+          tags: gdal-build:latest
+          load: true
+          cache-from: type=gha,scope=gdal=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=gdal=${{ matrix.platform }}
+
+      - name: Extract compiled library
+        run: |
+          rm -rf build
+          docker create --name lib gdal-build:latest
+          docker cp -a lib:/opt/bitnami build
+          tar -cf build.tar build/
+
+      - name: Upload built library result
+        uses: actions/upload-artifact@v3
+        with:
+          name: gdal-${{ matrix.platform }}
+          path: build.tar
+
   build_package:
+    needs: [build_gdal]
+    name: Build package - PostgreSQL ${{ matrix.postgresql_version.major }}
+    runs-on: ubuntu-latest
+
     strategy:
       matrix:
         postgresql_version:
@@ -16,16 +108,98 @@ jobs:
           - { major: 11, minor: 17, latest: false }
           - { major: 10, minor: 22, latest: false }
 
-    uses: bitcompat/base/.github/workflows/build.yaml@main
-    with:
-      name: PostgreSQL ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
-      build-args: |
-        RUN_TESTS=0
-        SERVER_VERSION=${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
-      image_tag: |
-        ${{ matrix.postgresql_version.latest && 'latest' || '' }}
-        ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r1
-        ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye
-        ${{ matrix.postgresql_version.major }}-bullseye
-        ${{ matrix.postgresql_version.major }}
-    secrets: inherit
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: gdal-amd64
+          path: build/linux/amd64
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: gdal-arm64
+          path: build/linux/arm64
+
+      - name: Extract built artifacts
+        run: |
+          pushd build/linux/amd64
+          tar xf build.tar
+          rm build.tar
+          popd
+          pushd build/linux/arm64
+          tar xf build.tar
+          rm build.tar
+          popd
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@main
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        id: login-ecr-public
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          registry-type: public
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: docker_meta
+        name: Extract docker image metadata
+        uses: docker/metadata-action@v3.6.0
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
+            public.ecr.aws/u5n3t0n5/${{ github.event.repository.name }}
+          tags: |
+            ${{ matrix.postgresql_version.latest && 'latest' || '' }}
+            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r1
+            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye
+            ${{ matrix.postgresql_version.major }}-bullseye
+            ${{ matrix.postgresql_version.major }}
+            type=sha
+            type=sha,format=long
+
+      - name: Build and Push container images
+        uses: docker/build-push-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            RUN_TESTS=0
+            SERVER_VERSION=${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
+          push: true
+          context: .
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
+          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.major }}
+          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.major }}
+
+      - name: Sign image with a key
+        run: |
+          cosign sign --key env://COSIGN_PRIVATE_KEY ${TAGS}
+        env:
+          TAGS: ${{ steps.docker_meta.outputs.tags }}
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
