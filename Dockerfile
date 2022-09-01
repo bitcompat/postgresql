@@ -161,7 +161,6 @@ EOT
 
 FROM docker.io/bitnami/minideb:bullseye AS stage-1
 
-ARG TARGETPLATFORM
 ARG SERVER_VERSION
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -182,9 +181,6 @@ RUN <<EOT bash
     /opt/bitnami/scripts/postgresql/postunpack.sh
     /opt/bitnami/scripts/locales/add-extra-locales.sh
 EOT
-
-LABEL org.opencontainers.image.ref.name="${SERVER_VERSION}.0-debian-11-r0" \
-      org.opencontainers.image.version="${SERVER_VERSION}.0"
 
 ENV HOME="/" \
     OS_ARCH="$TARGETPLATFORM" \
