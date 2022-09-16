@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Bitnami PostgreSQL setup
+# Bitcompat PostgreSQL setup
 
 # shellcheck disable=SC1091
 
