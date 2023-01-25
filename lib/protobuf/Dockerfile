@@ -4,16 +4,16 @@ FROM docker.io/bitnami/minideb:bullseye as builder
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config
 
-ARG PROTOBUF_CPP_VERSION=3.21.5
+ARG PROTOBUF_CPP_VERSION=21.12
 ARG PROTOBUF_C_VERSION=1.4.1
 
 RUN mkdir -p /opt/src
-ADD --link https://github.com/protobuf-c/protobuf-c/releases/download/v1.4.1/protobuf-c-1.4.1.tar.gz /opt/src/protobuf-c-1.4.1.tar.gz
-ADD --link https://github.com/protocolbuffers/protobuf/releases/download/v21.5/protobuf-cpp-3.21.5.tar.gz /opt/src/protobuf-cpp-3.21.5.tar.gz
+ADD --link https://github.com/protobuf-c/protobuf-c/releases/download/v${PROTOBUF_C_VERSION}/protobuf-c-${PROTOBUF_C_VERSION}.tar.gz /opt/src/protobuf-c-${PROTOBUF_C_VERSION}.tar.gz
+ADD --link https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_CPP_VERSION}/protobuf-cpp-3.${PROTOBUF_CPP_VERSION}.tar.gz /opt/src/protobuf-cpp-3.${PROTOBUF_CPP_VERSION}.tar.gz
 RUN <<EOT bash
     cd /opt/src
-    tar xf protobuf-cpp-${PROTOBUF_CPP_VERSION}.tar.gz
-    cd protobuf-${PROTOBUF_CPP_VERSION}
+    tar xf protobuf-cpp-3.${PROTOBUF_CPP_VERSION}.tar.gz
+    cd protobuf-3.${PROTOBUF_CPP_VERSION}
 
     ./configure --prefix=/opt/bitnami/postgresql
     make -j\$(nproc)

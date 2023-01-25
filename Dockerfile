@@ -26,17 +26,16 @@ RUN install_packages systemtap-sdt-dev pkg-config libicu-dev flex bison \
     maven openjdk-17-jdk-headless libpcre3-dev
 
 ARG SERVER_VERSION
-ARG PGAUDIT_15_VERSION=1.7beta1
+ARG PGAUDIT_15_VERSION=1.7.0
 ARG PGAUDIT_14_VERSION=1.6.2
 ARG PGAUDIT_13_VERSION=1.5.2
 ARG PGAUDIT_12_VERSION=1.4.3
 ARG PGAUDIT_11_VERSION=1.3.4
-ARG PGAUDIT_11_VERSION=1.2.4
 
-ARG ORAFCE_VERSION=VERSION_3_24_2
-ARG AUTOFAILOVER_VERSION=v1.6.4
+ARG ORAFCE_VERSION=VERSION_4_1_0
+ARG AUTOFAILOVER_VERSION=v2.0
 ARG PLJAVA_VERSION=V1_6_4
-ARG POSTGIS_VERSION=3.2.2
+ARG POSTGIS_VERSION=3.3.2
 
 ADD --link https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz /opt/src/postgis.tar.gz
 
@@ -94,8 +93,9 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     export PG_MAJOR=\$(echo "${SERVER_VERSION}" | cut -d'.' -f1)
     export PG_MINOR=\$(echo "${SERVER_VERSION}" | cut -d'.' -f2)
 
+    tagname=PGAUDIT_\${PG_MAJOR}_VERSION
     cd /opt/src
-    git clone -b REL_\${PG_MAJOR}_STABLE https://github.com/pgaudit/pgaudit.git pgaudit
+    git clone -b \${!tagname} https://github.com/pgaudit/pgaudit.git pgaudit
     cd pgaudit
     make install -j\$(nproc) USE_PGXS=1 PG_CONFIG=$PG_BASEDIR/bin/pg_config
 
@@ -126,7 +126,7 @@ RUN install_packages libyaml-dev libbz2-dev
 RUN  <<EOT bash
     set -ex
     cd /opt/src
-    git clone -b release/2.40 https://github.com/pgbackrest/pgbackrest.git pgbackrest
+    git clone -b release/2.43 https://github.com/pgbackrest/pgbackrest.git pgbackrest
     cd pgbackrest/src
     ./configure --prefix=$PG_BASEDIR
     make -j\$(nproc)

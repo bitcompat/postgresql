@@ -102,11 +102,11 @@ jobs:
     strategy:
       matrix:
         postgresql_version:
-          - { major: 14, minor: 5, latest: true }
-          - { major: 13, minor: 8, latest: false }
-          - { major: 12, minor: 12, latest: false }
-          - { major: 11, minor: 17, latest: false }
-          - { major: 10, minor: 22, latest: false }
+          - { major: 15, minor: 1, revision: 1, latest: true }
+          - { major: 14, minor: 6, revision: 1, latest: false }
+          - { major: 13, minor: 9, revision: 2, latest: false }
+          - { major: 12, minor: 13, revision: 2, latest: false }
+          - { major: 11, minor: 18, revision: 2, latest: false }
 
     permissions:
       contents: read
@@ -175,7 +175,7 @@ jobs:
             public.ecr.aws/u5n3t0n5/${{ github.event.repository.name }}
           tags: |
             ${{ matrix.postgresql_version.latest && 'latest' || '' }}
-            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r1
+            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r${{ matrix.postgresql_version.revision }}
             ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye
             ${{ matrix.postgresql_version.major }}-bullseye
             ${{ matrix.postgresql_version.major }}
