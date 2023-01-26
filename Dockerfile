@@ -86,7 +86,10 @@ EOT
 RUN echo "/opt/bitnami/common/lib" >> /etc/ld.so.conf
 RUN echo "/opt/bitnami/postgresql/lib" >> /etc/ld.so.conf
 RUN ldconfig /opt/bitnami/postgresql/lib
-RUN install_packages libtiff5
+RUN install_packages libtiff5 file
+
+RUN mkdir -p /patches
+ADD 0001-Support-PostgreSQL-v15.patch /patches/
 
 RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     set -ex
@@ -112,13 +115,16 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     cd /opt/src
     git clone -b ${PLJAVA_VERSION} https://github.com/tada/pljava.git pljava
     cd pljava
+    git apply /patches/0001-Support-PostgreSQL-v15.patch
     mvn clean install -Dpgsql.pgconfig=$PG_BASEDIR/bin/pg_config
     java -jar pljava-packaging/target/pljava-pg\$PG_MAJOR.jar
 
     cd /opt/src
     tar xvf postgis.tar.gz
     cd postgis-${POSTGIS_VERSION}
-    PKG_CONFIG_PATH=/opt/bitnami/postgresql/lib/pkgconfig:\$PKG_CONFIG_PATH ./configure --with-pgconfig=$PG_BASEDIR/bin/pg_config --with-projdir=/opt/bitnami/postgresql
+    PKG_CONFIG_PATH=/opt/bitnami/postgresql/lib/pkgconfig:\$PKG_CONFIG_PATH ./configure \
+        --with-pgconfig=$PG_BASEDIR/bin/pg_config --with-projdir=/opt/bitnami/postgresql \
+        --with-geosconfig=/opt/bitnami/postgresql/bin/geos-config
     make install -j\$(nproc) USE_PGXS=1
 EOT
 
