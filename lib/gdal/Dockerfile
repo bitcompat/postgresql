@@ -8,8 +8,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
     libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3 python3-lib2to3
 
-ARG GEOS_VERSION=3.11.1
-ARG GDAL_VERSION=3.6.2
+ARG GEOS_VERSION=3.11.2
+ARG GDAL_VERSION=3.6.4
 
 COPY --link lib/build /opt/bitnami
 COPY --from=ghcr.io/bitcompat/json-c:0.16-20220414-bullseye-r1 /opt/bitnami/common/ /opt/bitnami/postgresql/

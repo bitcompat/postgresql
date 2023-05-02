@@ -32,7 +32,7 @@ ARG PGAUDIT_13_VERSION=1.5.2
 ARG PGAUDIT_12_VERSION=1.4.3
 ARG PGAUDIT_11_VERSION=1.3.4
 
-ARG ORAFCE_VERSION=VERSION_4_1_0
+ARG ORAFCE_VERSION=VERSION_4_2_6
 ARG AUTOFAILOVER_VERSION=v2.0
 ARG PLJAVA_VERSION=V1_6_4
 ARG POSTGIS_VERSION=3.3.2
@@ -140,7 +140,7 @@ RUN  <<EOT bash
 EOT
 
 COPY --link rootfs /
-COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.12-bullseye-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
+COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.15-bullseye-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
 
 RUN <<EOT bash
     set -ex
