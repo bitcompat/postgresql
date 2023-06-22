@@ -102,11 +102,21 @@ jobs:
     strategy:
       matrix:
         postgresql_version:
-          - { major: 15, minor: 2, revision: 2, latest: true }
-          - { major: 14, minor: 7, revision: 2, latest: false }
-          - { major: 13, minor: 10, revision: 2, latest: false }
-          - { major: 12, minor: 14, revision: 2, latest: false }
-          - { major: 11, minor: 19, revision: 2, latest: false }
+          - version: 15.3 # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: true
+            revision: 1
+          - version: 14.8 # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: 13.11 # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: 12.15 # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: 11.20 # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
 
     permissions:
       contents: read
@@ -139,6 +149,24 @@ jobs:
           rm build.tar
           popd
 
+      - uses: actions/github-script@v6
+        id: version-tags
+        env:
+          VERSION: '${{ matrix.postgresql_version.version }}'
+          REVISION: '${{ matrix.postgresql_version.revision }}'
+        with:
+          result-encoding: string
+          script: |
+            const { REVISION: revision, VERSION: version } = process.env;
+            const [ major, minor, patch ] = version.split('.').filter(V => '' !== V);
+            
+            return `
+            ${major}.${minor}-bullseye-r${revision}
+            ${major}.${minor}-bullseye
+            ${major}.${minor}
+            ${major}
+            `;
+
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
 
@@ -168,19 +196,14 @@ jobs:
 
       - id: docker_meta
         name: Extract docker image metadata
-        uses: docker/metadata-action@v4.4.0
+        uses: docker/metadata-action@v4.6.0
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
             public.ecr.aws/bitcompat/${{ github.event.repository.name }}
           tags: |
-            ${{ matrix.postgresql_version.latest && 'latest' || '' }}
-            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye-r${{ matrix.postgresql_version.revision }}
-            ${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}-bullseye
-            ${{ matrix.postgresql_version.major }}-bullseye
-            ${{ matrix.postgresql_version.major }}
-            type=sha
-            type=sha,format=long
+            ${{ matrix.version.latest && 'latest' || '' }}
+            ${{ steps.version-tags.outputs.result }}
 
       - name: Build and Push container images
         uses: docker/build-push-action@v4
@@ -188,13 +211,13 @@ jobs:
           platforms: linux/amd64,linux/arm64
           build-args: |
             RUN_TESTS=0
-            SERVER_VERSION=${{ matrix.postgresql_version.major }}.${{ matrix.postgresql_version.minor }}
+            SERVER_VERSION=${{ matrix.postgresql_version.version }}
           push: true
           context: .
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
-          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.major }}
-          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.major }}
+          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}
+          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}
 
       - name: Sign image with a key
         run: |
