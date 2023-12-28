@@ -43,15 +43,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: protobuf-${{ matrix.platform }}
           path: lib/gdal/build/protobuf
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: unixodbc-${{ matrix.platform }}
           path: lib/gdal/build/unixodbc
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: libproj-${{ matrix.platform }}
           path: lib/gdal/build/libproj
@@ -102,19 +102,19 @@ jobs:
     strategy:
       matrix:
         postgresql_version:
-          - version: '15.4' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '16.1' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: true
             revision: 1
-          - version: '14.9' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '15.5' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '13.12' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '14.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '12.16' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '13.13' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '11.21' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '12.17' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
 
@@ -161,8 +161,8 @@ jobs:
             const [ major, minor, patch ] = version.split('.').filter(V => '' !== V);
             
             return `
-            ${major}.${minor}-bullseye-r${revision}
-            ${major}.${minor}-bullseye
+            ${major}.${minor}-bookworm-r${revision}
+            ${major}.${minor}-bookworm
             ${major}.${minor}
             ${major}
             `;
@@ -174,6 +174,9 @@ jobs:
         uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2

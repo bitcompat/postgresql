@@ -1,15 +1,15 @@
-# syntax=docker/dockerfile:1.4
+# syntax=docker/dockerfile:1.6
 ARG RUN_TESTS=0
 
-FROM docker.io/bitnami/minideb:bullseye as builder
+FROM docker.io/bitnami/minideb:bookworm as builder
 
 ARG RUN_TESTS
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
     libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3 python3-lib2to3
 
-ARG GEOS_VERSION=3.11.2
-ARG GDAL_VERSION=3.6.4
+ARG GEOS_VERSION=3.12.0
+ARG GDAL_VERSION=3.7.2
 
 COPY --link lib/build /opt/bitnami
 COPY --from=ghcr.io/bitcompat/json-c:0.16-20220414-bullseye-r1 /opt/bitnami/common/ /opt/bitnami/postgresql/
@@ -69,6 +69,6 @@ RUN <<EOT bash
     cmake --build . --target install
 EOT
 
-FROM docker.io/bitnami/minideb:bullseye as stage-0
+FROM docker.io/bitnami/minideb:bookworm as stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami

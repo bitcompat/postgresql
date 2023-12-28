@@ -4,7 +4,7 @@ ARG RUN_TESTS=0
 ARG EXTRA_LOCALES=""
 ARG WITH_ALL_LOCALES="no"
 
-FROM docker.io/bitnami/minideb:bullseye as stage-0
+FROM docker.io/bitnami/minideb:bookworm as stage-0
 
 ARG TARGETPLATFORM
 ARG RUN_TESTS
@@ -16,7 +16,7 @@ COPY prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install required system packages and dependencies
-COPY --link --from=ghcr.io/bitcompat/gosu:1.14.0-bullseye-r1 /opt/bitnami/* /opt/bitnami/
+COPY --link --from=ghcr.io/bitcompat/gosu:1.17.0-bookworm-r1 /opt/bitnami/* /opt/bitnami/
 COPY --link build/$TARGETPLATFORM/* /opt/bitnami/
 
 RUN install_packages ca-certificates curl gzip libbz2-1.0 tar procps zlib1g locales bzip2 tzdata build-essential g++
@@ -26,16 +26,17 @@ RUN install_packages systemtap-sdt-dev pkg-config libicu-dev flex bison \
     maven openjdk-17-jdk-headless libpcre3-dev
 
 ARG SERVER_VERSION
+ARG PGAUDIT_16_VERSION=16.0
 ARG PGAUDIT_15_VERSION=1.7.0
 ARG PGAUDIT_14_VERSION=1.6.2
 ARG PGAUDIT_13_VERSION=1.5.2
 ARG PGAUDIT_12_VERSION=1.4.3
 ARG PGAUDIT_11_VERSION=1.3.4
 
-ARG ORAFCE_VERSION=VERSION_4_2_6
-ARG AUTOFAILOVER_VERSION=v2.0
-ARG PLJAVA_VERSION=V1_6_4
-ARG POSTGIS_VERSION=3.3.2
+ARG ORAFCE_VERSION=VERSION_4_7_0
+ARG AUTOFAILOVER_VERSION=v2.1
+ARG PLJAVA_VERSION=V1_6_6
+ARG POSTGIS_VERSION=3.4.1
 
 ADD --link https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz /opt/src/postgis.tar.gz
 
@@ -86,10 +87,7 @@ EOT
 RUN echo "/opt/bitnami/common/lib" >> /etc/ld.so.conf
 RUN echo "/opt/bitnami/postgresql/lib" >> /etc/ld.so.conf
 RUN ldconfig /opt/bitnami/postgresql/lib
-RUN install_packages libtiff5 file
-
-RUN mkdir -p /patches
-ADD 0001-Support-PostgreSQL-v15.patch /patches/
+RUN install_packages libtiff6 file
 
 RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     set -ex
@@ -115,7 +113,6 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     cd /opt/src
     git clone -b ${PLJAVA_VERSION} https://github.com/tada/pljava.git pljava
     cd pljava
-    git apply /patches/0001-Support-PostgreSQL-v15.patch
     mvn clean install -Dpgsql.pgconfig=$PG_BASEDIR/bin/pg_config
     java -jar pljava-packaging/target/pljava-pg\$PG_MAJOR.jar
 
@@ -132,7 +129,7 @@ RUN install_packages libyaml-dev libbz2-dev
 RUN  <<EOT bash
     set -ex
     cd /opt/src
-    git clone -b release/2.43 https://github.com/pgbackrest/pgbackrest.git pgbackrest
+    git clone -b release/2.49 https://github.com/pgbackrest/pgbackrest.git pgbackrest
     cd pgbackrest/src
     ./configure --prefix=$PG_BASEDIR
     make -j\$(nproc)
@@ -140,7 +137,7 @@ RUN  <<EOT bash
 EOT
 
 COPY --link rootfs /
-COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.15-bullseye-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
+COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.15-bookworm-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
 
 RUN <<EOT bash
     set -ex
@@ -165,7 +162,7 @@ RUN <<EOT bash
     strip --strip-all /opt/bitnami/common/bin/* || true
 EOT
 
-FROM docker.io/bitnami/minideb:bullseye AS stage-1
+FROM docker.io/bitnami/minideb:bookworm AS stage-1
 
 ARG SERVER_VERSION
 
@@ -175,8 +172,8 @@ LABEL org.opencontainers.image.ref.name="${SERVER_VERSION}.0-debian-11-r0" \
 
 COPY --from=stage-0 /opt/bitnami /opt/bitnami
 RUN <<EOT bash
-    install_packages acl curl ca-certificates locales libicu67 libreadline8 zlib1g \
-    libldap-2.4-2 libpam0g libssl1.1 libxml2 openssl \
+    install_packages acl curl ca-certificates locales libicu72 libreadline8 zlib1g \
+    libldap-2.5-0 libpam0g libssl3 libxml2 openssl \
     libxslt1.1 libzstd1 libuuid1 liblz4-1 procps libedit2 libsqlite3-0
 
     localedef -c -f UTF-8 -i en_US en_US.UTF-8
@@ -190,7 +187,7 @@ EOT
 
 ENV HOME="/" \
     OS_ARCH="$TARGETPLATFORM" \
-    OS_FLAVOUR="debian-11" \
+    OS_FLAVOUR="debian-12" \
     OS_NAME="linux" \
     APP_VERSION="${SERVER_VERSION}.0" \
     BITNAMI_APP_NAME="postgresql" \
