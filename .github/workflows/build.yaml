@@ -199,7 +199,7 @@ jobs:
 
       - id: docker_meta
         name: Extract docker image metadata
-        uses: docker/metadata-action@v4.6.0
+        uses: docker/metadata-action@v5.5.1
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
