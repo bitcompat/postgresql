@@ -72,7 +72,7 @@ jobs:
         uses: docker/setup-buildx-action@v2
 
       - name: Build container
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.platform }}
           context: lib/gdal
@@ -209,7 +209,7 @@ jobs:
             ${{ steps.version-tags.outputs.result }}
 
       - name: Build and Push container images
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64,linux/arm64
           build-args: |
