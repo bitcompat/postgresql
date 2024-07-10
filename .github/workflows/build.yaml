@@ -89,7 +89,7 @@ jobs:
           tar -cf build.tar build/
 
       - name: Upload built library result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gdal-${{ matrix.platform }}
           path: build.tar
@@ -128,12 +128,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: gdal-amd64
           path: build/linux/amd64
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: gdal-arm64
           path: build/linux/arm64
