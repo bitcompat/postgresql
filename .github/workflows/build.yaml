@@ -67,12 +67,12 @@ jobs:
           tar xf protobuf.tar
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Build container
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/${{ matrix.platform }}
           context: lib/gdal
@@ -89,32 +89,32 @@ jobs:
           tar -cf build.tar build/
 
       - name: Upload built library result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gdal-${{ matrix.platform }}
           path: build.tar
 
   build_package:
     needs: [build_gdal]
-    name: Build package - PostgreSQL ${{ matrix.postgresql_version.major }}
+    name: Build package - PostgreSQL ${{ matrix.postgresql_version.version }}
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         postgresql_version:
-          - version: '16.1' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '16.3' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: true
             revision: 1
-          - version: '15.5' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '15.7' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '14.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '14.12' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '13.13' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '13.15' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '12.17' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '12.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
 
@@ -128,12 +128,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: gdal-amd64
           path: build/linux/amd64
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           name: gdal-arm64
           path: build/linux/arm64
@@ -149,7 +149,7 @@ jobs:
           rm build.tar
           popd
 
-      - uses: actions/github-script@v6
+      - uses: actions/github-script@v7
         id: version-tags
         env:
           VERSION: '${{ matrix.postgresql_version.version }}'
@@ -171,27 +171,27 @@ jobs:
         uses: sigstore/cosign-installer@main
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
             image=moby/buildkit:latest
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
       - name: Login to Amazon ECR Public
         id: login-ecr-public
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
         with:
           registry-type: public
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -199,7 +199,7 @@ jobs:
 
       - id: docker_meta
         name: Extract docker image metadata
-        uses: docker/metadata-action@v4.6.0
+        uses: docker/metadata-action@v5.5.1
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
@@ -209,7 +209,7 @@ jobs:
             ${{ steps.version-tags.outputs.result }}
 
       - name: Build and Push container images
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           platforms: linux/amd64,linux/arm64
           build-args: |
