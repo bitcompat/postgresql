@@ -137,7 +137,7 @@ RUN  <<EOT bash
 EOT
 
 COPY --link rootfs /
-COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.15-bookworm-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
+COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.16-bookworm-r1 /opt/bitnami/common/lib/libnss_wrapper.so /opt/bitnami/common/lib/libnss_wrapper.so
 
 RUN <<EOT bash
     set -ex
