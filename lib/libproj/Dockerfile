@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.9
 ARG RUN_TESTS=0
 
 FROM docker.io/bitnami/minideb:bookworm as builder
