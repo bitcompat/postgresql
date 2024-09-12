@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.6
+# syntax=docker/dockerfile:1.10
 FROM docker.io/bitnami/minideb:bookworm as builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
