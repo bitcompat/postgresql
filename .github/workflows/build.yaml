@@ -102,19 +102,22 @@ jobs:
     strategy:
       matrix:
         postgresql_version:
-          - version: '16.3' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '17.0' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: true
             revision: 1
-          - version: '15.7' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '16.4' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '14.12' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '15.8' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '13.15' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '14.13' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '12.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '13.16' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '12.20' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
 
