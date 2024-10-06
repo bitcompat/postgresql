@@ -1,6 +1,8 @@
 #!/bin/bash
+# Copyright Broadcom, Inc. All Rights Reserved.
+# SPDX-License-Identifier: APACHE-2.0
 #
-# Bitcompat PostgreSQL library
+# Bitnami PostgreSQL library
 
 # shellcheck disable=SC1090,SC1091
 
@@ -52,6 +54,12 @@ postgresql_validate() {
     print_validation_error() {
         error "$1"
         error_code=1
+    }
+
+    check_multi_value() {
+        if [[ " ${2} " != *" ${!1} "* ]]; then
+            print_validation_error "The allowed values for ${1} are: ${2}"
+        fi
     }
 
     empty_password_enabled_warn() {
@@ -141,6 +149,10 @@ postgresql_validate() {
         if ! is_yes_no_value "$POSTGRESQL_TLS_PREFER_SERVER_CIPHERS"; then
             print_validation_error "The values allowed for POSTGRESQL_TLS_PREFER_SERVER_CIPHERS are: yes or no"
         fi
+    fi
+
+    if [[ -n "$POSTGRESQL_SYNCHRONOUS_REPLICAS_MODE" ]]; then
+        check_multi_value "POSTGRESQL_SYNCHRONOUS_REPLICAS_MODE" "FIRST ANY"
     fi
 
     [[ "$error_code" -eq 0 ]] || exit "$error_code"
@@ -352,8 +364,10 @@ postgresql_set_property() {
 #########################
 postgresql_create_replication_user() {
     local -r escaped_password="${POSTGRESQL_REPLICATION_PASSWORD//\'/\'\'}"
+    local -r postgres_password="${POSTGRESQL_POSTGRES_PASSWORD:-$POSTGRESQL_PASSWORD}"
+
     info "Creating replication user $POSTGRESQL_REPLICATION_USER"
-    echo "CREATE ROLE \"$POSTGRESQL_REPLICATION_USER\" REPLICATION LOGIN ENCRYPTED PASSWORD '$escaped_password'" | postgresql_execute
+    echo "CREATE ROLE \"$POSTGRESQL_REPLICATION_USER\" REPLICATION LOGIN ENCRYPTED PASSWORD '$escaped_password'" | postgresql_execute "" "postgres" "$postgres_password"
 }
 
 ########################
@@ -390,6 +404,7 @@ postgresql_configure_replication_parameters() {
 #########################
 postgresql_configure_synchronous_replication() {
     local replication_nodes=""
+    local synchronous_standby_names=""
     info "Configuring synchronous_replication"
 
     # Check for comma separate values
@@ -409,8 +424,13 @@ postgresql_configure_synchronous_replication() {
     fi
 
     if ((POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS > 0)); then
+        synchronous_standby_names="${POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS} (${replication_nodes})"
+        if [[ -n "$POSTGRESQL_SYNCHRONOUS_REPLICAS_MODE" ]]; then
+            synchronous_standby_names="${POSTGRESQL_SYNCHRONOUS_REPLICAS_MODE} ${synchronous_standby_names}"
+        fi
+
         postgresql_set_property "synchronous_commit" "$POSTGRESQL_SYNCHRONOUS_COMMIT_MODE"
-        postgresql_set_property "synchronous_standby_names" "${POSTGRESQL_NUM_SYNCHRONOUS_REPLICAS} (${replication_nodes})"
+        postgresql_set_property "synchronous_standby_names" "$synchronous_standby_names"
     fi
 }
 
@@ -478,17 +498,18 @@ postgresql_alter_postgres_user() {
 #########################
 postgresql_create_admin_user() {
     local -r escaped_password="${POSTGRESQL_PASSWORD//\'/\'\'}"
+    local -r postgres_password="${POSTGRESQL_POSTGRES_PASSWORD:-$POSTGRESQL_PASSWORD}"
     info "Creating user ${POSTGRESQL_USERNAME}"
     local connlimit_string=""
     if [[ -n "$POSTGRESQL_USERNAME_CONNECTION_LIMIT" ]]; then
         connlimit_string="CONNECTION LIMIT ${POSTGRESQL_USERNAME_CONNECTION_LIMIT}"
     fi
-    echo "CREATE ROLE \"${POSTGRESQL_USERNAME}\" WITH LOGIN ${connlimit_string} CREATEDB PASSWORD '${escaped_password}';" | postgresql_execute
+    echo "CREATE ROLE \"${POSTGRESQL_USERNAME}\" WITH LOGIN ${connlimit_string} CREATEDB PASSWORD '${escaped_password}';" | postgresql_execute "" "postgres" "$postgres_password"
     info "Granting access to \"${POSTGRESQL_USERNAME}\" to the database \"${POSTGRESQL_DATABASE}\""
-    echo "GRANT ALL PRIVILEGES ON DATABASE \"${POSTGRESQL_DATABASE}\" TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "" "postgres" "$POSTGRESQL_PASSWORD"
-    echo "ALTER DATABASE \"${POSTGRESQL_DATABASE}\" OWNER TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "" "postgres" "$POSTGRESQL_PASSWORD"
+    echo "GRANT ALL PRIVILEGES ON DATABASE \"${POSTGRESQL_DATABASE}\" TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "" "postgres" "$postgres_password"
+    echo "ALTER DATABASE \"${POSTGRESQL_DATABASE}\" OWNER TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "" "postgres" "$postgres_password"
     info "Setting ownership for the 'public' schema database \"${POSTGRESQL_DATABASE}\" to \"${POSTGRESQL_USERNAME}\""
-    echo "ALTER SCHEMA public OWNER TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "$POSTGRESQL_DATABASE" "postgres" "$POSTGRESQL_PASSWORD"
+    echo "ALTER SCHEMA public OWNER TO \"${POSTGRESQL_USERNAME}\"\;" | postgresql_execute "$POSTGRESQL_DATABASE" "postgres" "$postgres_password"
 }
 
 ########################
@@ -603,7 +624,8 @@ postgresql_initialize() {
     is_boolean_yes "$POSTGRESQL_ALLOW_REMOTE_CONNECTIONS" && is_boolean_yes "$create_pghba_file" && postgresql_create_pghba && postgresql_allow_local_connection
     # Configure port
     postgresql_set_property "port" "$POSTGRESQL_PORT_NUMBER"
-
+    is_empty_value "$POSTGRESQL_DEFAULT_TOAST_COMPRESSION" || postgresql_set_property "default_toast_compression" "$POSTGRESQL_DEFAULT_TOAST_COMPRESSION"
+    is_empty_value "$POSTGRESQL_PASSWORD_ENCRYPTION" || postgresql_set_property "password_encryption" "$POSTGRESQL_PASSWORD_ENCRYPTION"
     if ! is_dir_empty "$POSTGRESQL_DATA_DIR"; then
         info "Deploying PostgreSQL with persisted data..."
         export POSTGRESQL_FIRST_BOOT="no"
@@ -653,6 +675,9 @@ postgresql_initialize() {
 
     # Delete conf files generated on first run
     rm -f "$POSTGRESQL_DATA_DIR"/postgresql.conf "$POSTGRESQL_DATA_DIR"/pg_hba.conf
+
+    # Stop postgresql
+    postgresql_stop
 }
 
 ########################
@@ -734,7 +759,7 @@ postgresql_stop() {
     if [[ -f "$POSTGRESQL_PID_FILE" ]]; then
         info "Stopping PostgreSQL..."
         if am_i_root; then
-            gosu "$POSTGRESQL_DAEMON_USER" "${cmd[@]}"
+            run_as_user "$POSTGRESQL_DAEMON_USER" "${cmd[@]}"
         else
             "${cmd[@]}"
         fi
@@ -752,14 +777,14 @@ postgresql_stop() {
 #########################
 postgresql_start_bg() {
     local -r pg_logs=${1:-false}
-    local -r pg_ctl_flags=("-w" "-D" "$POSTGRESQL_DATA_DIR" "-l" "$POSTGRESQL_LOG_FILE" "-o" "--config-file=$POSTGRESQL_CONF_FILE --external_pid_file=$POSTGRESQL_PID_FILE --hba_file=$POSTGRESQL_PGHBA_FILE")
+    local -r pg_ctl_flags=("-W" "-D" "$POSTGRESQL_DATA_DIR" "-l" "$POSTGRESQL_LOG_FILE" "-o" "--config-file=$POSTGRESQL_CONF_FILE --external_pid_file=$POSTGRESQL_PID_FILE --hba_file=$POSTGRESQL_PGHBA_FILE")
     info "Starting PostgreSQL in background..."
     if is_postgresql_running; then
         return 0
     fi
     local pg_ctl_cmd=()
     if am_i_root; then
-        pg_ctl_cmd+=("gosu" "$POSTGRESQL_DAEMON_USER")
+        pg_ctl_cmd+=("run_as_user" "$POSTGRESQL_DAEMON_USER")
     fi
     pg_ctl_cmd+=("$POSTGRESQL_BIN_DIR"/pg_ctl)
     if [[ "${BITNAMI_DEBUG:-false}" = true ]] || [[ $pg_logs = true ]]; then
@@ -767,7 +792,7 @@ postgresql_start_bg() {
     else
         "${pg_ctl_cmd[@]}" "start" "${pg_ctl_flags[@]}" >/dev/null 2>&1
     fi
-    local pg_isready_args=("-U" "postgres" "-p" "$POSTGRESQL_PORT_NUMBER")
+    local pg_isready_args=("-U" "postgres" "-p" "$POSTGRESQL_PORT_NUMBER" "-h" "127.0.0.1")
     local counter=$POSTGRESQL_INIT_MAX_TIMEOUT
     while ! "$POSTGRESQL_BIN_DIR"/pg_isready "${pg_isready_args[@]}" >/dev/null 2>&1; do
         sleep 1
@@ -835,7 +860,7 @@ postgresql_master_init_db() {
     fi
     local initdb_cmd=()
     if am_i_root; then
-        initdb_cmd+=("gosu" "$POSTGRESQL_DAEMON_USER")
+        initdb_cmd+=("run_as_user" "$POSTGRESQL_DAEMON_USER")
     fi
     initdb_cmd+=("$POSTGRESQL_BIN_DIR/initdb")
     if [[ -n "${initdb_args[*]:-}" ]]; then
@@ -866,7 +891,7 @@ postgresql_slave_init_db() {
     local -r check_args=("-U" "$POSTGRESQL_REPLICATION_USER" "-h" "$POSTGRESQL_MASTER_HOST" "-p" "$POSTGRESQL_MASTER_PORT_NUMBER" "-d" "postgres")
     local check_cmd=()
     if am_i_root; then
-        check_cmd=("gosu" "$POSTGRESQL_DAEMON_USER")
+        check_cmd=("run_as_user" "$POSTGRESQL_DAEMON_USER")
     fi
     check_cmd+=("$POSTGRESQL_BIN_DIR"/pg_isready)
     local ready_counter=$POSTGRESQL_INIT_MAX_TIMEOUT
@@ -884,7 +909,7 @@ postgresql_slave_init_db() {
     local -r backup_args=("-D" "$POSTGRESQL_DATA_DIR" "-U" "$POSTGRESQL_REPLICATION_USER" "-h" "$POSTGRESQL_MASTER_HOST" "-p" "$POSTGRESQL_MASTER_PORT_NUMBER" "-X" "stream" "-w" "-v" "-P")
     local backup_cmd=()
     if am_i_root; then
-        backup_cmd+=("gosu" "$POSTGRESQL_DAEMON_USER")
+        backup_cmd+=("run_as_user" "$POSTGRESQL_DAEMON_USER")
     fi
     backup_cmd+=("$POSTGRESQL_BIN_DIR"/pg_basebackup)
     local replication_counter=$POSTGRESQL_INIT_MAX_TIMEOUT
@@ -915,7 +940,7 @@ postgresql_configure_recovery() {
     local -r psql_major_version="$(postgresql_get_major_version)"
     if ((psql_major_version >= 12)); then
         postgresql_set_property "primary_conninfo" "host=${POSTGRESQL_MASTER_HOST} port=${POSTGRESQL_MASTER_PORT_NUMBER} user=${POSTGRESQL_REPLICATION_USER} password=${escaped_password} application_name=${POSTGRESQL_CLUSTER_APP_NAME}" "$POSTGRESQL_CONF_FILE"
-        postgresql_set_property "promote_trigger_file" "/tmp/postgresql.trigger.${POSTGRESQL_MASTER_PORT_NUMBER}" "$POSTGRESQL_CONF_FILE"
+        ((psql_major_version < 16)) && postgresql_set_property "promote_trigger_file" "/tmp/postgresql.trigger.${POSTGRESQL_MASTER_PORT_NUMBER}" "$POSTGRESQL_CONF_FILE"
         touch "$POSTGRESQL_DATA_DIR"/standby.signal
     else
         cp -f "$POSTGRESQL_BASE_DIR/share/recovery.conf.sample" "$POSTGRESQL_RECOVERY_FILE"
@@ -994,6 +1019,11 @@ postgresql_remove_pghba_lines() {
     done
 }
 
+# Copyright Broadcom, Inc. All Rights Reserved.
+# SPDX-License-Identifier: APACHE-2.0
+
+# shellcheck disable=SC2148
+
 ########################
 # Return PostgreSQL major version
 # Globals:
@@ -1004,7 +1034,7 @@ postgresql_remove_pghba_lines() {
 #   String
 #########################
 postgresql_get_major_version() {
-    psql --version | awk '{print $3}'  | grep -oE "[0-9]+\.[0-9]+" | grep -oE "^[0-9]+"
+    psql --version | grep -oE "[0-9]+\.[0-9]+" | grep -oE "^[0-9]+"
 }
 
 ########################
@@ -1048,7 +1078,7 @@ postgresql_execute_print_output() {
     local opts
     read -r -a opts <<<"${@:4}"
 
-    local args=("-U" "$user" "-p" "${POSTGRESQL_PORT_NUMBER:-5432}")
+    local args=("-U" "$user" "-p" "${POSTGRESQL_PORT_NUMBER:-5432}" "-h" "127.0.0.1")
     [[ -n "$db" ]] && args+=("-d" "$db")
     [[ "${#opts[@]}" -gt 0 ]] && args+=("${opts[@]}")
 

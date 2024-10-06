@@ -1,11 +1,13 @@
 #!/bin/bash
+# Copyright Broadcom, Inc. All Rights Reserved.
+# SPDX-License-Identifier: APACHE-2.0
 
 # shellcheck disable=SC1091
 
 set -o errexit
 set -o nounset
 set -o pipefail
-# set -o xtrace # Uncomment this line for debugging purpose
+# set -o xtrace # Uncomment this line for debugging purposes
 
 # Load libraries
 . /opt/bitnami/scripts/libpostgresql.sh
@@ -21,13 +23,17 @@ if [[ -n "${POSTGRESQL_EXTRA_FLAGS:-}" ]]; then
     flags+=("${extra_flags[@]}")
 fi
 
+if [[ -n "${POSTGRESQL_DEFAULT_TRANSACTION_ISOLATION:-}" ]]; then
+    flags+=("-c" "default_transaction_isolation=$POSTGRESQL_DEFAULT_TRANSACTION_ISOLATION")
+fi
+
 flags+=("$@")
 
 cmd=$(command -v postgres)
 
 info "** Starting PostgreSQL **"
 if am_i_root; then
-    exec gosu "$POSTGRESQL_DAEMON_USER" "$cmd" "${flags[@]}"
+    exec_as_user "$POSTGRESQL_DAEMON_USER" "$cmd" "${flags[@]}"
 else
     exec "$cmd" "${flags[@]}"
 fi
