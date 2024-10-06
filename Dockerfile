@@ -125,7 +125,8 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     PKG_CONFIG_PATH=/opt/bitnami/postgresql/lib/pkgconfig:\$PKG_CONFIG_PATH ./configure \
         --with-pgconfig=$PG_BASEDIR/bin/pg_config --with-projdir=/opt/bitnami/postgresql \
         --with-geosconfig=/opt/bitnami/postgresql/bin/geos-config
-    make install -j\$(nproc) USE_PGXS=1
+    make -j\$(nproc) USE_PGXS=1
+    make install
 EOT
 
 RUN install_packages libyaml-dev libbz2-dev
