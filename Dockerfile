@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.10
+# syntax=docker/dockerfile:1.14
 ARG SERVER_VERSION
 ARG RUN_TESTS=0
 ARG EXTRA_LOCALES=""
@@ -33,10 +33,10 @@ ARG PGAUDIT_14_VERSION=1.6.2
 ARG PGAUDIT_13_VERSION=1.5.2
 ARG PGAUDIT_12_VERSION=1.4.3
 
-ARG ORAFCE_VERSION=VERSION_4_13_3
+ARG ORAFCE_VERSION=VERSION_4_14_2
 ARG AUTOFAILOVER_VERSION=v2.1
 ARG PLJAVA_VERSION=REL1_6_STABLE
-ARG POSTGIS_VERSION=3.5.0
+ARG POSTGIS_VERSION=3.5.2
 
 ADD --link https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz /opt/src/postgis.tar.gz
 
@@ -133,7 +133,7 @@ RUN install_packages libyaml-dev libbz2-dev
 RUN  <<EOT bash
     set -ex
     cd /opt/src
-    git clone -b release/2.53.1 https://github.com/pgbackrest/pgbackrest.git pgbackrest
+    git clone -b release/2.54.2 https://github.com/pgbackrest/pgbackrest.git pgbackrest
     cd pgbackrest/src
     ./configure --prefix=$PG_BASEDIR
     make -j\$(nproc)
