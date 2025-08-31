@@ -1,6 +1,4 @@
 #!/bin/bash
-# Copyright Broadcom, Inc. All Rights Reserved.
-# SPDX-License-Identifier: APACHE-2.0
 #
 # Validation functions library
 
@@ -277,21 +275,11 @@ validate_string() {
                 return 1
                 ;;
             *)
-                break
+                string="$1"
                 ;;
         esac
         shift
     done
-
-    if [ "$#" -gt 1 ]; then
-        stderr_print "too many arguments provided"
-        return 2
-    elif [ "$#" -eq 0 ]; then
-        stderr_print "missing string"
-        return 1
-    else
-        string=$1
-    fi
 
     if [[ "$min_length" -ge 0 ]] && [[ "${#string}" -lt "$min_length" ]]; then
         echo "string length is less than $min_length"

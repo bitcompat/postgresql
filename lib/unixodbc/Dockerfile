@@ -1,5 +1,5 @@
-# syntax=docker/dockerfile:1.14
-FROM docker.io/bitnami/minideb:bookworm as builder
+# syntax=docker/dockerfile:1.17
+FROM docker.io/bitnami/minideb:bookworm AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
@@ -19,8 +19,11 @@ RUN <<EOT bash
     ./configure --prefix=/opt/bitnami/common --with-pic
     make -j\$(nproc)
     make install
+
+    mkdir -p /opt/bitnami/common/licenses
+    cp COPYING /opt/bitnami/common/licenses/unixodbc-${UNIX_ODBC_VERSION}.txt
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm as stage-0
+FROM docker.io/bitnami/minideb:bookworm AS stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami

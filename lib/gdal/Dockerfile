@@ -1,18 +1,18 @@
-# syntax=docker/dockerfile:1.14
+# syntax=docker/dockerfile:1.17
 ARG RUN_TESTS=0
 
-FROM docker.io/bitnami/minideb:bookworm as builder
+FROM docker.io/bitnami/minideb:bookworm AS builder
 
 ARG RUN_TESTS
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
     libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3 python3-lib2to3
 
-ARG GEOS_VERSION=3.13.0
-ARG GDAL_VERSION=3.9.2
+ARG GEOS_VERSION=3.14.0
+ARG GDAL_VERSION=3.11.3
 
 COPY --link lib/build /opt/bitnami
-COPY --from=ghcr.io/bitcompat/json-c:0.16-20220414-bullseye-r1 /opt/bitnami/common/ /opt/bitnami/postgresql/
+COPY --from=ghcr.io/bitcompat/json-c:0.18-20240915-bookworm-r2 /opt/bitnami/common/ /opt/bitnami/postgresql/
 RUN sed -i 's/\/common/\/postgresql/' /opt/bitnami/postgresql/lib/pkgconfig/json-c.pc
 
 ADD --link https://download.osgeo.org/geos/geos-${GEOS_VERSION}.tar.bz2 /opt/src/geos-${GEOS_VERSION}.tar.bz2
@@ -41,6 +41,9 @@ RUN <<EOT bash
       ctest
     fi
     make install
+
+    mkdir -p /opt/bitnami/postgresql/licenses
+    cp ../COPYING /opt/bitnami/postgresql/licenses/geos-${GEOS_VERSION}.txt
 EOT
 
 RUN <<EOT bash
@@ -67,8 +70,11 @@ RUN <<EOT bash
       -DGDAL_USE_ODBC=ON
     cmake --build . -j\$(nproc)
     cmake --build . --target install
+
+    mkdir -p /opt/bitnami/postgresql/licenses
+    cp ../LICENSE.TXT /opt/bitnami/postgresql/licenses/gdal-${GDAL_VERSION}.txt
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm as stage-0
+FROM docker.io/bitnami/minideb:bookworm AS stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami

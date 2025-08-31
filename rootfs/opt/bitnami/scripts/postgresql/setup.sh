@@ -1,8 +1,6 @@
 #!/bin/bash
-# Copyright Broadcom, Inc. All Rights Reserved.
-# SPDX-License-Identifier: APACHE-2.0
 #
-# Bitnami PostgreSQL setup
+# PostgreSQL setup
 
 # shellcheck disable=SC1091
 
@@ -46,4 +44,10 @@ fi
 if ! postgresql_is_file_external "pg_hba.conf" && [[ -n "$POSTGRESQL_PGHBA_REMOVE_FILTERS" ]]; then
     info "Removing lines that match these filters: ${POSTGRESQL_PGHBA_REMOVE_FILTERS}"
     postgresql_remove_pghba_lines
+fi
+
+# Set custom pg_hba.conf after initialization to avoid conflicts
+if postgresql_is_file_external "pg_hba.conf"; then
+    info "Applying custom $POSTGRESQL_PGHBA_FILE"
+    cp -f "$POSTGRESQL_MOUNTED_CONF_DIR"/pg_hba.conf "$POSTGRESQL_CONF_DIR"
 fi

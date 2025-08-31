@@ -1,8 +1,6 @@
 #!/bin/bash
-# Copyright Broadcom, Inc. All Rights Reserved.
-# SPDX-License-Identifier: APACHE-2.0
 #
-# Bitnami persistence library
+# Persistence library
 # Used for bringing persistence capabilities to applications that don't have clear separation of data and logic
 
 # shellcheck disable=SC1091

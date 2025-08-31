@@ -1,6 +1,4 @@
 #!/bin/bash
-# Copyright Broadcom, Inc. All Rights Reserved.
-# SPDX-License-Identifier: APACHE-2.0
 #
 # Library for file system actions
 
@@ -121,7 +119,7 @@ relativize() {
 }
 
 ########################
-# Configure permisions and ownership recursively
+# Configure permissions and ownership recursively
 # Globals:
 #   None
 # Arguments:

@@ -1,7 +1,7 @@
-# syntax=docker/dockerfile:1.14
+# syntax=docker/dockerfile:1.17
 ARG RUN_TESTS=0
 
-FROM docker.io/bitnami/minideb:bookworm as builder
+FROM docker.io/bitnami/minideb:bookworm AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
@@ -35,8 +35,10 @@ RUN <<EOT bash
       ctest
     fi
     cmake --build . --target install
+    mkdir -p /opt/bitnami/postgresql/licenses
+    cp ../COPYING /opt/bitnami/postgresql/licenses/proj-${PROJ_VERSION}.txt
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm as stage-0
+FROM docker.io/bitnami/minideb:bookworm AS stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami
