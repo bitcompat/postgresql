@@ -32,11 +32,11 @@ jobs:
     strategy:
       matrix:
         platform:
-          - amd64
-          - arm64
+          - { name: amd64, image: ubuntu-24.04 }
+          - { name: arm64, image: ubuntu-24.04-arm }
 
-    name: Build GDAL library - ${{ matrix.platform }}
-    runs-on: ubuntu-latest
+    name: Build GDAL library - ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.image }}
 
     steps:
       - uses: actions/checkout@master
@@ -45,15 +45,15 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: protobuf-${{ matrix.platform }}
+          name: protobuf-${{ matrix.platform.name }}
           path: lib/gdal/build/protobuf
       - uses: actions/download-artifact@v4
         with:
-          name: unixodbc-${{ matrix.platform }}
+          name: unixodbc-${{ matrix.platform.name }}
           path: lib/gdal/build/unixodbc
       - uses: actions/download-artifact@v4
         with:
-          name: libproj-${{ matrix.platform }}
+          name: libproj-${{ matrix.platform.name }}
           path: lib/gdal/build/libproj
 
       - run: |
@@ -74,12 +74,12 @@ jobs:
       - name: Build container
         uses: docker/build-push-action@v6
         with:
-          platforms: linux/${{ matrix.platform }}
+          platforms: linux/${{ matrix.platform.name }}
           context: lib/gdal
           tags: gdal-build:latest
           load: true
-          cache-from: type=gha,scope=gdal=${{ matrix.platform }}
-          cache-to: type=gha,mode=max,scope=gdal=${{ matrix.platform }}
+          cache-from: type=gha,scope=gdal=${{ matrix.platform.name }}
+          cache-to: type=gha,mode=max,scope=gdal=${{ matrix.platform.name }}
 
       - name: Extract compiled library
         run: |
@@ -91,33 +91,148 @@ jobs:
       - name: Upload built library result
         uses: actions/upload-artifact@v4
         with:
-          name: gdal-${{ matrix.platform }}
+          name: gdal-${{ matrix.platform.name }}
           path: build.tar
 
-  build_package:
+  build_amd_image:
     needs: [build_gdal]
-    name: Build package - PostgreSQL ${{ matrix.postgresql_version.version }}
-    runs-on: ubuntu-latest
+    name: Build AMD64 Image - PostgreSQL ${{ matrix.postgresql_version.version }}
+    runs-on: ubuntu-24.04
 
     strategy:
       matrix:
         postgresql_version:
-          - version: '17.4' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: true
             revision: 1
-          - version: '16.8' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '15.12' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '14.17' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '13.20' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+          - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
-          - version: '12.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gdal-amd64
+          path: build/linux/amd64
+
+      - name: Extract built artifacts
+        run: |
+          pushd build/linux/amd64
+          tar xf build.tar
+          rm build.tar
+          popd
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Build and Push container images
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/amd64
+          build-args: |
+            RUN_TESTS=0
+            SERVER_VERSION=${{ matrix.postgresql_version.version }}
+          push: false
+          context: .
+          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-amd64
+          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}-amd64
+
+  build_arm_image:
+    needs: [build_gdal]
+    name: Build ARM64 Image - PostgreSQL ${{ matrix.postgresql_version.version }}
+    runs-on: ubuntu-24.04-arm
+
+    strategy:
+      matrix:
+        postgresql_version:
+          - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: true
+            revision: 1
+          - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gdal-arm64
+          path: build/linux/arm64
+
+      - name: Extract built artifacts
+        run: |
+          pushd build/linux/arm64
+          tar xf build.tar
+          rm build.tar
+          popd
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Build and Push container images
+        uses: docker/build-push-action@v6
+        with:
+          platforms: linux/arm64
+          build-args: |
+            RUN_TESTS=0
+            SERVER_VERSION=${{ matrix.postgresql_version.version }}
+          push: false
+          context: .
+          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
+          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
+
+  build_package:
+    needs: [build_amd_image, build_arm_image]
+    name: Build package - PostgreSQL ${{ matrix.postgresql_version.version }}
+    runs-on: ubuntu-24.04
+
+    strategy:
+      matrix:
+        postgresql_version:
+          - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: true
+            revision: 1
+          - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
+            latest: false
+            revision: 1
+          - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
             revision: 1
 
@@ -202,7 +317,7 @@ jobs:
 
       - id: docker_meta
         name: Extract docker image metadata
-        uses: docker/metadata-action@v5.6.1
+        uses: docker/metadata-action@v5.8.0
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
@@ -222,8 +337,9 @@ jobs:
           context: .
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
-          cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}
-          cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}
+          cache-from: |-
+            type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-amd64
+            type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
 
       - name: Sign image with a key
         run: |

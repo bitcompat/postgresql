@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.14
+# syntax=docker/dockerfile:1.17
 ARG SERVER_VERSION
 ARG RUN_TESTS=0
 ARG EXTRA_LOCALES=""
@@ -26,17 +26,16 @@ RUN install_packages systemtap-sdt-dev pkg-config libicu-dev flex bison \
     maven openjdk-17-jdk-headless libpcre3-dev
 
 ARG SERVER_VERSION
-ARG PGAUDIT_17_VERSION=17.0
-ARG PGAUDIT_16_VERSION=16.0
-ARG PGAUDIT_15_VERSION=1.7.0
-ARG PGAUDIT_14_VERSION=1.6.2
-ARG PGAUDIT_13_VERSION=1.5.2
-ARG PGAUDIT_12_VERSION=1.4.3
+ARG PGAUDIT_17_VERSION=17.1
+ARG PGAUDIT_16_VERSION=16.1
+ARG PGAUDIT_15_VERSION=1.7.1
+ARG PGAUDIT_14_VERSION=1.6.3
+ARG PGAUDIT_13_VERSION=1.5.3
 
-ARG ORAFCE_VERSION=VERSION_4_14_2
-ARG AUTOFAILOVER_VERSION=v2.1
+ARG ORAFCE_VERSION=VERSION_4_14_4
+ARG AUTOFAILOVER_VERSION=v2.2
 ARG PLJAVA_VERSION=REL1_6_STABLE
-ARG POSTGIS_VERSION=3.5.2
+ARG POSTGIS_VERSION=3.5.3
 
 ADD --link https://download.osgeo.org/postgis/source/postgis-${POSTGIS_VERSION}.tar.gz /opt/src/postgis.tar.gz
 
@@ -89,8 +88,6 @@ RUN echo "/opt/bitnami/postgresql/lib" >> /etc/ld.so.conf
 RUN ldconfig /opt/bitnami/postgresql/lib
 RUN install_packages libtiff6 file
 
-COPY 0001-fix-support-postgresql-17.patch /opt/src
-
 RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     set -ex
     export PG_MAJOR=\$(echo "${SERVER_VERSION}" | cut -d'.' -f1)
@@ -110,7 +107,6 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
     cd /opt/src
     git clone -b ${AUTOFAILOVER_VERSION} https://github.com/citusdata/pg_auto_failover.git pg_auto_failover
     cd pg_auto_failover
-    git apply /opt/src/0001-fix-support-postgresql-17.patch
     make install -j\$(nproc) USE_PGXS=1 PG_CONFIG=$PG_BASEDIR/bin/pg_config
 
     cd /opt/src
@@ -133,7 +129,7 @@ RUN install_packages libyaml-dev libbz2-dev
 RUN  <<EOT bash
     set -ex
     cd /opt/src
-    git clone -b release/2.54.2 https://github.com/pgbackrest/pgbackrest.git pgbackrest
+    git clone -b release/2.56.0 https://github.com/pgbackrest/pgbackrest.git pgbackrest
     cd pgbackrest/src
     ./configure --prefix=$PG_BASEDIR
     make -j\$(nproc)
