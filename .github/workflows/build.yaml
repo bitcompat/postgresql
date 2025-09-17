@@ -103,20 +103,10 @@ jobs:
       matrix:
         postgresql_version:
           - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: true
-            revision: 1
           - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
 
     steps:
       - uses: actions/checkout@master
@@ -162,20 +152,10 @@ jobs:
       matrix:
         postgresql_version:
           - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: true
-            revision: 1
           - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
           - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
-            latest: false
-            revision: 1
 
     steps:
       - uses: actions/checkout@master
@@ -222,19 +202,14 @@ jobs:
         postgresql_version:
           - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: true
-            revision: 1
           - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
-            revision: 1
           - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
-            revision: 1
           - version: '14.19' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
-            revision: 1
           - version: '13.22' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
             latest: false
-            revision: 1
 
     permissions:
       contents: read
@@ -267,23 +242,12 @@ jobs:
           rm build.tar
           popd
 
-      - uses: actions/github-script@v7
+      - uses: bitcompat/compute-ghcr-revision-action@v1
         id: version-tags
-        env:
-          VERSION: '${{ matrix.postgresql_version.version }}'
-          REVISION: '${{ matrix.postgresql_version.revision }}'
         with:
-          result-encoding: string
-          script: |
-            const { REVISION: revision, VERSION: version } = process.env;
-            const [ major, minor, patch ] = version.split('.').filter(V => '' !== V);
-            
-            return `
-            ${major}.${minor}-bookworm-r${revision}
-            ${major}.${minor}-bookworm
-            ${major}.${minor}
-            ${major}
-            `;
+            version: '${{ matrix.postgresql_version.version }}'
+            debian_codename: 'bookworm'
+            major_only_tag: 'true'
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@main
@@ -324,7 +288,7 @@ jobs:
             public.ecr.aws/bitcompat/${{ github.event.repository.name }}
           tags: |
             ${{ matrix.version.latest && 'latest' || '' }}
-            ${{ steps.version-tags.outputs.result }}
+            ${{ steps.version-tags.outputs.tags }}
 
       - name: Build and Push container images
         uses: docker/build-push-action@v6
@@ -348,16 +312,25 @@ jobs:
         run: crane auth login public.ecr.aws -u "${{ steps.login-ecr.outputs.docker_username_public_ecr_aws }}" -p "${{ steps.login-ecr.outputs.docker_password_public_ecr_aws }}"
 
       - name: Flatten images
+        id: flatten_images
         run: |
-            echo $DOCKER_METADATA_OUTPUT_JSON | jq -r '.tags[]' | 
-              while read -r IMG; do
-                crane flatten "$IMG"
-              done
+          set -ex
+          DIGEST=""
+          while read -r IMG; do
+            export OUT=$(crane flatten "$IMG")
+            DIGEST=$(echo "$OUT" | awk 'END{print}' | cut -d'@' -f2)
+          done <<< $(echo $DOCKER_METADATA_OUTPUT_JSON | jq -r '.tags[]')
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Sign image with a key
         run: |
-          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${TAGS}
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${images}
         env:
           TAGS: ${{ steps.docker_meta.outputs.tags }}
+          DIGEST: ${{ steps.flatten_images.outputs.digest }}
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
