@@ -102,6 +102,7 @@ jobs:
     strategy:
       matrix:
         postgresql_version:
+          - version: '18.0' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
           - version: '17.6' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
           - version: '16.10' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
           - version: '15.14' # renovate: datasource=github-tags depName=postgres/postgres extractVersion=^REL_?(?<version>[\d_]+)$ versioning=loose
