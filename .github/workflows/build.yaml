@@ -43,15 +43,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: protobuf-${{ matrix.platform.name }}
           path: lib/gdal/build/protobuf
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: unixodbc-${{ matrix.platform.name }}
           path: lib/gdal/build/unixodbc
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: libproj-${{ matrix.platform.name }}
           path: lib/gdal/build/libproj
@@ -114,7 +114,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: gdal-amd64
           path: build/linux/amd64
@@ -163,7 +163,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: gdal-arm64
           path: build/linux/arm64
@@ -222,12 +222,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: gdal-amd64
           path: build/linux/amd64
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: gdal-arm64
           path: build/linux/arm64
