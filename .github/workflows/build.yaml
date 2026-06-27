@@ -310,7 +310,7 @@ jobs:
             type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
 
       - name: Setup CRANE
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.7
 
       - name: Login to ECR Public in CRANE
         run: crane auth login public.ecr.aws -u "${{ steps.login-ecr.outputs.docker_username_public_ecr_aws }}" -p "${{ steps.login-ecr.outputs.docker_password_public_ecr_aws }}"
