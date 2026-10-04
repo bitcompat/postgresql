@@ -1,18 +1,18 @@
 # syntax=docker/dockerfile:1.27
 ARG RUN_TESTS=0
 
-FROM docker.io/bitnami/minideb:bookworm AS builder
+FROM docker.io/bitnami/minideb:trixie AS builder
 
 ARG RUN_TESTS
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
-    libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3 python3-lib2to3
+    libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3
 
 ARG GEOS_VERSION=3.14.0
 ARG GDAL_VERSION=3.11.3
 
 COPY --link lib/build /opt/bitnami
-COPY --from=ghcr.io/bitcompat/json-c:0.18-20240915-bookworm-r2 /opt/bitnami/common/ /opt/bitnami/postgresql/
+COPY --from=ghcr.io/bitcompat/json-c:0.19-20260627-trixie /opt/bitnami/common/ /opt/bitnami/postgresql/
 RUN sed -i 's/\/common/\/postgresql/' /opt/bitnami/postgresql/lib/pkgconfig/json-c.pc
 
 ADD --link https://download.osgeo.org/geos/geos-${GEOS_VERSION}.tar.bz2 /opt/src/geos-${GEOS_VERSION}.tar.bz2
@@ -75,6 +75,6 @@ RUN <<EOT bash
     cp ../LICENSE.TXT /opt/bitnami/postgresql/licenses/gdal-${GDAL_VERSION}.txt
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm AS stage-0
+FROM docker.io/bitnami/minideb:trixie AS stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami

@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.27
 ARG RUN_TESTS=0
 
-FROM docker.io/bitnami/minideb:bookworm AS builder
+FROM docker.io/bitnami/minideb:trixie AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl git build-essential g++ cmake tar gzip bzip2 pkg-config \
-    libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3 python3-lib2to3
+    libsqlite3-dev libtiff-dev libcurl4-gnutls-dev python3 sqlite3
 
 ARG RUN_TESTS
 ARG PROJ_VERSION=8.2.1
@@ -39,6 +39,6 @@ RUN <<EOT bash
     cp ../COPYING /opt/bitnami/postgresql/licenses/proj-${PROJ_VERSION}.txt
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm AS stage-0
+FROM docker.io/bitnami/minideb:trixie AS stage-0
 
 COPY --link --from=builder /opt/bitnami /opt/bitnami

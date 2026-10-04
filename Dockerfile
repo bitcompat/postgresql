@@ -4,7 +4,7 @@ ARG RUN_TESTS=0
 ARG EXTRA_LOCALES=""
 ARG WITH_ALL_LOCALES="no"
 
-FROM docker.io/bitnami/minideb:bookworm AS stage-0
+FROM docker.io/bitnami/minideb:trixie AS stage-0
 
 ARG TARGETPLATFORM
 ARG RUN_TESTS
@@ -19,9 +19,9 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 COPY build/$TARGETPLATFORM/* /opt/bitnami/
 
 RUN install_packages ca-certificates curl gzip libbz2-1.0 tar procps zlib1g locales bzip2 tzdata build-essential g++ \
-    systemtap-sdt-dev pkg-config libicu-dev flex bison libreadline-dev zlib1g-dev libldap2-dev libpam-dev libssl-dev \
+    systemtap-sdt-dev pkg-config libicu-dev flex bison libreadline-dev zlib1g-dev libldap2-dev libpam0g-dev libssl-dev \
     libxml2-dev libxml2-utils libxslt1-dev libzstd-dev uuid-dev gettext libperl-dev libipc-run-perl liblz4-dev xsltproc \
-    zstd git maven openjdk-17-jdk-headless libpcre3-dev libtiff6 file libyaml-dev libbz2-dev meson ninja-build cmake \
+    zstd git maven openjdk-21-jdk-headless libpcre2-dev libtiff6 file libyaml-dev libbz2-dev meson ninja-build cmake \
     autoconf automake m4 libtool
 
 ARG SERVER_VERSION
@@ -175,7 +175,7 @@ RUN --mount=type=cache,target=/root/.m2 <<EOT bash
 EOT
 
 COPY --link rootfs /
-COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.16-bookworm-r1 /opt/bitnami/common/* /opt/bitnami/common/lib/
+COPY --from=ghcr.io/bitcompat/nss-wrapper:1.1.16-trixie /opt/bitnami/common/* /opt/bitnami/common/lib/
 
 RUN <<EOT bash
     set -ex
@@ -209,19 +209,19 @@ RUN <<EOT bash
     strip --strip-all /opt/bitnami/common/bin/* || true
 EOT
 
-FROM docker.io/bitnami/minideb:bookworm AS stage-1
+FROM docker.io/bitnami/minideb:trixie AS stage-1
 
 ARG SERVER_VERSION
-ARG TARGETPLATFORM
+ARG TARGETARCH
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-LABEL org.opencontainers.image.ref.name="${SERVER_VERSION}.0-debian-12-r0" \
-      org.opencontainers.image.version="${SERVER_VERSION}.0"
+LABEL org.opencontainers.image.ref.name="${SERVER_VERSION}-trixie" \
+      org.opencontainers.image.version="${SERVER_VERSION}"
 
 COPY --from=stage-0 /opt/bitnami /opt/bitnami
 RUN <<EOT bash
-    install_packages ca-certificates libbsd0 locales libicu72 libreadline8 zlib1g \
-    libldap-2.5-0 libpam0g libssl3 libxml2 libpcre3 libsasl2-2 \
+    install_packages ca-certificates libbsd0 locales libicu76 libreadline8t64 zlib1g \
+    libldap2 libpam0g libssl3t64 libxml2 libpcre2-8-0 libsasl2-2 \
     libxslt1.1 libzstd1 libuuid1 liblz4-1 procps libedit2 libsqlite3-0
 
     localedef -c -f UTF-8 -i en_US en_US.UTF-8
@@ -235,10 +235,10 @@ RUN <<EOT bash
 EOT
 
 ENV HOME="/" \
-    OS_ARCH="$TARGETPLATFORM" \
-    OS_FLAVOUR="debian-12" \
+    OS_ARCH="$TARGETARCH" \
+    OS_FLAVOUR="debian-13" \
     OS_NAME="linux" \
-    APP_VERSION="${SERVER_VERSION}.0" \
+    APP_VERSION="${SERVER_VERSION}" \
     BITNAMI_APP_NAME="postgresql" \
     LANG="en_US.UTF-8" \
     LANGUAGE="en_US:en" \

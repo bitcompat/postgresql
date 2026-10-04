@@ -250,7 +250,7 @@ jobs:
         id: version-tags
         with:
             version: '${{ matrix.postgresql_version.version }}'
-            debian_codename: 'bookworm'
+            debian_codename: 'trixie'
             major_only_tag: 'true'
 
       - name: Install Cosign
@@ -291,7 +291,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
             public.ecr.aws/bitcompat/${{ github.event.repository.name }}
           tags: |
-            ${{ matrix.version.latest && 'latest' || '' }}
+            ${{ matrix.postgresql_version.latest && 'latest' || '' }}
             ${{ steps.version-tags.outputs.tags }}
 
       - name: Build and Push container images
@@ -318,23 +318,22 @@ jobs:
       - name: Flatten images
         id: flatten_images
         run: |
-          set -ex
+          set -euo pipefail
           DIGEST=""
+          TAGS=$(echo "$DOCKER_METADATA_OUTPUT_JSON" | jq -r '.tags[]')
           while read -r IMG; do
-            export OUT=$(crane flatten "$IMG")
-            DIGEST=$(echo "$OUT" | awk 'END{print}' | cut -d'@' -f2)
-          done <<< $(echo $DOCKER_METADATA_OUTPUT_JSON | jq -r '.tags[]')
+            OUT=$(crane flatten "$IMG")
+            HASH=$(echo "$OUT" | awk 'END{print}' | cut -d'@' -f2)
+            [[ "$HASH" =~ ^sha256:[a-f0-9]{64}$ ]]
+            DIGEST+="$IMG@$HASH "
+          done <<< "$TAGS"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Sign image with a key
         run: |
-          images=""
-          for tag in ${TAGS}; do
-            images+="${tag}@${DIGEST} "
-          done
-          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${images}
+          set -euo pipefail
+          cosign sign --yes --key env://COSIGN_PRIVATE_KEY ${DIGEST}
         env:
-          TAGS: ${{ steps.docker_meta.outputs.tags }}
           DIGEST: ${{ steps.flatten_images.outputs.digest }}
           COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
