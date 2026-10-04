@@ -140,9 +140,39 @@ jobs:
             RUN_TESTS=0
             SERVER_VERSION=${{ matrix.postgresql_version.version }}
           push: false
+          load: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+          tags: bitcompat-under-test:local
           context: .
           cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-amd64
           cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}-amd64
+
+      - name: Checkout compatibility tests
+        if: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        uses: actions/checkout@v6
+        with:
+          repository: bitcompat/base
+          ref: main
+          path: .bitcompat-compatibility
+          sparse-checkout: tests/compatibility
+          persist-credentials: false
+
+      - name: Test container compatibility
+        if: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        run: >-
+          python3 .bitcompat-compatibility/tests/compatibility/run.py
+          --service postgresql
+          --candidate bitcompat-under-test:local
+          --version "${{ matrix.postgresql_version.version }}"
+          --platform linux/amd64
+          --report compatibility-report.json
+
+      - name: Upload compatibility report
+        if: ${{ always() && vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: compatibility-postgresql-${{ matrix.postgresql_version.version }}-amd64
+          path: compatibility-report.json
+          if-no-files-found: warn
 
   build_arm_image:
     needs: [build_gdal]
@@ -190,9 +220,39 @@ jobs:
             RUN_TESTS=0
             SERVER_VERSION=${{ matrix.postgresql_version.version }}
           push: false
+          load: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+          tags: bitcompat-under-test:local
           context: .
           cache-from: type=gha,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
           cache-to: type=gha,mode=max,scope=postgresql-${{ matrix.postgresql_version.version }}-arm64
+
+      - name: Checkout compatibility tests
+        if: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        uses: actions/checkout@v6
+        with:
+          repository: bitcompat/base
+          ref: main
+          path: .bitcompat-compatibility
+          sparse-checkout: tests/compatibility
+          persist-credentials: false
+
+      - name: Test container compatibility
+        if: ${{ vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        run: >-
+          python3 .bitcompat-compatibility/tests/compatibility/run.py
+          --service postgresql
+          --candidate bitcompat-under-test:local
+          --version "${{ matrix.postgresql_version.version }}"
+          --platform linux/arm64
+          --report compatibility-report.json
+
+      - name: Upload compatibility report
+        if: ${{ always() && vars.BITCOMPAT_DATABASE_COMPATIBILITY == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: compatibility-postgresql-${{ matrix.postgresql_version.version }}-arm64
+          path: compatibility-report.json
+          if-no-files-found: warn
 
   build_package:
     needs: [build_amd_image, build_arm_image]
