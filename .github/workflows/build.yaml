@@ -43,15 +43,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: protobuf-${{ matrix.platform.name }}
           path: lib/gdal/build/protobuf
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: unixodbc-${{ matrix.platform.name }}
           path: lib/gdal/build/unixodbc
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: libproj-${{ matrix.platform.name }}
           path: lib/gdal/build/libproj
@@ -89,7 +89,7 @@ jobs:
           tar -cf build.tar build/
 
       - name: Upload built library result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gdal-${{ matrix.platform.name }}
           path: build.tar
@@ -114,7 +114,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: gdal-amd64
           path: build/linux/amd64
@@ -194,7 +194,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: gdal-arm64
           path: build/linux/arm64
@@ -285,12 +285,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: gdal-amd64
           path: build/linux/amd64
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: gdal-arm64
           path: build/linux/arm64
