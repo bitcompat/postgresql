@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.27
+# syntax=docker/dockerfile:1.28
 FROM docker.io/bitnami/minideb:trixie AS builder
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
