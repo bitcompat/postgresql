@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.28
+# syntax=docker/dockerfile:1.29
 ARG SERVER_VERSION
 ARG RUN_TESTS=0
 ARG EXTRA_LOCALES=""
