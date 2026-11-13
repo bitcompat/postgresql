@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.28
+# syntax=docker/dockerfile:1.29
 ARG RUN_TESTS=0
 
 FROM docker.io/bitnami/minideb:trixie AS builder
